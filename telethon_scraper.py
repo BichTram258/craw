@@ -5,7 +5,7 @@ from telethon.sync import TelegramClient
 from telethon.tl.functions.messages import GetHistoryRequest
 import random
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import argparse
 
 re="\033[1;31m"
@@ -51,15 +51,30 @@ async def get_messages():
 
     options_dict = json.loads(options)
     offset_date = options_dict.get('offset_date', None)
-    limit = options_dict.get('limit', 100)
+    limit = options_dict.get('limit', 2000)
     if offset_date:
-        offset_date = datetime.now() - timedelta(days=offset_date)
+        offset_date = date.today() - timedelta(days=offset_date-1)
     else:
         offset_date = None
 
     messages = []
-    async for message in client.iter_messages(group_name, limit=limit, offset_date=offset_date):
-        messages.append(message)
+    min_id = 0
+    max_id=0
+    _continue = True
+    async for message in client.iter_messages(group_name, limit=1, offset_date=offset_date):
+        min_id = message.id
+    while _continue :
+        _messages=[]
+        if(max_id==0):
+            async for message in client.iter_messages(group_name, limit=limit, offset_date=0, min_id=min_id ):
+                _messages.append(message)
+        else:
+            async for message in client.iter_messages(group_name, limit=limit, offset_date=0, min_id=min_id,max_id=max_id ):
+                _messages.append(message)
+        if(len(_messages) > 0):
+            max_id = _messages[-1].id
+        _continue = len(_messages) == limit
+        messages.extend(_messages)
 
     return messages
 
